@@ -1,0 +1,6 @@
+{
+  "name": "DerivEdge Pro AI - Derivative & Synthetic Trading Platform",
+  "description": "Real-time derivative trading platform connected to Deriv WebSocket, featuring Signal AI volatility scanning, automated trading bots, and customizable risk management.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
