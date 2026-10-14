@@ -23,6 +23,7 @@ export const MarketScanner: React.FC<MarketScannerProps> = ({
   const [selectedContractType, setSelectedContractType] = useState<string>('RISE_FALL');
   const [signals, setSignals] = useState<AISignal[]>([]);
   const [loading, setLoading] = useState(false);
+  const [autoTradeOnSignal, setAutoTradeOnSignal] = useState(false);
   const [successToast, setSuccessToast] = useState<string | null>(null);
 
   const runScan = async () => {
@@ -30,13 +31,24 @@ export const MarketScanner: React.FC<MarketScannerProps> = ({
     const data = await fetchAiSignalScan(markets, selectedContractType);
     setSignals(data);
     setLoading(false);
+
+    if (autoTradeOnSignal && data.length > 0) {
+      data.forEach(sig => handleExecute(sig, true));
+      setSuccessToast(`Auto-traded ${data.length} available signals instantly!`);
+      setTimeout(() => setSuccessToast(null), 3500);
+    }
   };
 
   useEffect(() => {
     runScan();
-  }, [selectedContractType]);
+    let interval: any;
+    if (autoTradeOnSignal) {
+      interval = setInterval(runScan, 15000);
+    }
+    return () => clearInterval(interval);
+  }, [selectedContractType, autoTradeOnSignal]);
 
-  const handleExecute = (sig: AISignal) => {
+  const handleExecute = (sig: AISignal, isAuto: boolean = false) => {
     const order: Partial<TradeOrder> = {
       symbol: sig.symbol,
       symbolName: sig.name,
@@ -51,7 +63,7 @@ export const MarketScanner: React.FC<MarketScannerProps> = ({
     };
     onExecuteTrade(order);
 
-    if (soundEnabled) {
+    if (soundEnabled && !isAuto) {
       try {
         const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3');
         audio.volume = 0.4;
@@ -59,8 +71,10 @@ export const MarketScanner: React.FC<MarketScannerProps> = ({
       } catch (e) {}
     }
 
-    setSuccessToast(`Executed ${sig.contractType || sig.action} trade on ${sig.name}`);
-    setTimeout(() => setSuccessToast(null), 3000);
+    if (!isAuto) {
+      setSuccessToast(`Executed ${sig.contractType || sig.action} trade on ${sig.name}`);
+      setTimeout(() => setSuccessToast(null), 3000);
+    }
   };
 
   const openPositions = activePositions.filter(p => p.status === 'OPEN');
@@ -92,16 +106,35 @@ export const MarketScanner: React.FC<MarketScannerProps> = ({
                 <Radar className="w-5 h-5 animate-spin" />
               </div>
               <span className="text-xs font-bold text-indigo-400 tracking-wider uppercase">Signal AI Volatility Scanner</span>
+              {autoTradeOnSignal && (
+                <span className="bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 text-[10px] px-2 py-0.5 rounded-full font-bold animate-pulse">
+                  Auto-Trade on Signal Active
+                </span>
+              )}
             </div>
             <h2 className="text-xl md:text-2xl font-black text-white">
               Select Trade Type & Scan All Volatilities (Plain & 1s)
             </h2>
             <p className="text-xs text-slate-300 max-w-xl">
-              Choose your target derivative contract type. The AI scanner instantly evaluates all plain and (1s) volatility indices (excluding boom/crash).
+              Choose your target derivative contract type. Toggle 'Auto-Trade on Signal' to execute trades instantly as soon as signals appear.
             </p>
           </div>
 
-          <div className="flex items-center space-x-3">
+          <div className="flex items-center space-x-4">
+            {/* Auto-Trade on Signal Toggle */}
+            <div className="flex items-center space-x-2.5 bg-slate-900/90 border border-slate-800 rounded-2xl px-4 py-2.5">
+              <span className="text-xs font-bold text-slate-200">Auto-Trade on Signal</span>
+              <label className="relative flex items-center cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={autoTradeOnSignal}
+                  onChange={(e) => setAutoTradeOnSignal(e.target.checked)}
+                  className="sr-only peer"
+                />
+                <div className="w-9 h-5 bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-600"></div>
+              </label>
+            </div>
+
             <button
               onClick={runScan}
               disabled={loading}
@@ -219,7 +252,7 @@ export const MarketScanner: React.FC<MarketScannerProps> = ({
 
         {openPositions.length === 0 ? (
           <div className="py-8 text-center text-slate-500 text-xs italic">
-            No active scanned trades yet. Click 'Scan & Trade All' or 'Execute Signal' above to start trading automatically.
+            No active scanned trades yet. Enable 'Auto-Trade on Signal' or click 'Scan & Trade All' above to start automated trading.
           </div>
         ) : (
           <div className="overflow-x-auto">

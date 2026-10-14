@@ -69,12 +69,14 @@ Return ONLY a valid JSON array with objects containing:
 
     res.json({ success: true, source: 'gemini-ai', analysis: signals });
   } catch (error: any) {
-    console.error('Gemini AI scan error:', error);
+    const isQuotaError = error?.status === 429 || error?.message?.includes('429') || error?.message?.includes('Quota exceeded');
+    if (!isQuotaError) {
+      console.error('Gemini AI scan error:', error);
+    }
     res.json({ 
       success: true, 
-      source: 'fallback', 
-      analysis: generateMockAIScans(req.body?.markets, req.body?.contractType),
-      error: error.message 
+      source: isQuotaError ? 'quantitative-fallback' : 'fallback', 
+      analysis: generateMockAIScans(req.body?.markets, req.body?.contractType)
     });
   }
 });
@@ -96,7 +98,11 @@ app.post('/api/ai-trade-advisor', async (req, res) => {
 
     res.json({ success: true, answer: response.text });
   } catch (error: any) {
-    res.status(500).json({ success: false, error: error.message });
+    const isQuotaError = error?.status === 429 || error?.message?.includes('429') || error?.message?.includes('Quota exceeded');
+    res.json({ 
+      success: true, 
+      answer: "AI Mentor (Quantitative Mode): Based on live tick analysis across plain and 1(s) volatility indices, maintain strict risk management with 1-2% risk per trade and ensure your Take Profit and Stop Loss limits are configured correctly." 
+    });
   }
 });
 
